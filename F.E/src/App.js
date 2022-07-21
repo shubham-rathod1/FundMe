@@ -204,12 +204,12 @@ const App = () => {
             <div key={i}>
               <p>Campaign Id: {item.Pubkey.toString()}</p>
               <p>Campaign name: {item.name}</p>
-              <p>Campaign minContribution: {item.minContribution.toString()}</p>
               <p>Campaign admin: {item.admin.toString()}</p>
               <p>
                 Balance: {(item.donation / web3.LAMPORTS_PER_SOL).toString()}
               </p>
               <button onClick={() => donation(item.Pubkey)}>Donate</button>
+              console.log({item.Pubkey.toString()})
               <button onClick={() => withdrawFunds(item.Pubkey)}>
                 Withdraw
               </button>
