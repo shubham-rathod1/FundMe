@@ -1,17 +1,27 @@
 import './App.css';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import idl from './idl.json';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import { Program, Provider, utils, web3 } from '@project-serum/anchor';
 import { BN } from 'bn.js';
+import Grid from '@mui/material/Grid';
+
 // const anchor = require('@project-serum/anchor');
 
 import { Buffer } from 'buffer';
+import Header from './core/header';
+import {
+  createCampaign,
+  donation,
+  getProvider,
+  withdrawFunds,
+} from './helper/helper';
+import Campaigns from './module/campaigns';
+import AlertDialog from './core/dialog';
 window.Buffer = Buffer;
 
 // SystemProgram is a reference to the Solana runtime!
 const { SystemProgram, Keypair } = web3;
-
 // Create a keypair for the account that will hold the GIF data.
 // let baseAccount = Keypair.generate();
 // const arr = Object.values(kp._keypair.secretKey);
@@ -35,109 +45,27 @@ const App = () => {
   const [solana, setSolana] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
 
-  const getProvider = () => {
-    const connection = new Connection(network, opts.preflightCommitment);
-    const provider = new Provider(connection, solana, opts.preflightCommitment);
-    return provider;
+  const [open, setOpen] = React.useState(false);
+
+  const handleClickOpen = () => {
+    setOpen(true);
   };
 
-  const checkWalletConnection = async () => {
-    try {
-      const { solana } = window;
-      if (solana.isPhantom) {
-        setSolana(solana);
-        console.log('Phantom wallet found');
-        const result = await solana.connect({ onlyIfTrusted: true });
-        const key = result.publicKey.toString();
-        console.log(key);
-        setWallet(key);
-      } else {
-        alert('No phantom wallet found');
-      }
-    } catch (err) {
-      console.log(err);
-    }
+  const handleClose = () => {
+    setOpen(false);
   };
 
-  const connectWallet = async () => {
-    console.log(solana);
-    const result = await solana.connect();
-    const key = await result.publicKey.toString();
-    setWallet(key);
-    console.log(key);
+  const handleWallet = (val) => {
+    setWallet(val);
   };
-
-  useEffect(() => {
-    const onLoad = async () => {
-      await checkWalletConnection();
-    };
-    window.addEventListener('load', onLoad);
-    return () => window.removeEventListener('load', onLoad);
-  }, []);
-
-  // const createCampaign = async () => {
-  //   try {
-  //     const provider = getProvider();
-  //     const program = new Program(idl, programID, provider);
-  //     // as we are using derived account we cannot use random generated wallet;
-  //     // we have to use specific address that is calculted for our campaign;
-  //     const [campaign] = await PublicKey.findProgramAddress(
-  //       [
-  //         utils.bytes.utf8.encode('CAMPAIGN_DEMO'),
-  //         provider.wallet.publicKey.toBuffer(),
-  //       ],
-  //       program.programId
-  //     );
-  //     // create our accounts
-  //     // create campaign function call;
-  //     // const val = new anchor.BN(0.1);
-  //     console.log(campaign.toString());
-  //     await program.rpc.createCampaign('shubham', 'desc', {
-  //       accounts: {
-  //         campaign,
-  //         user: provider.wallet.publicKey,
-  //         systemProgram: SystemProgram.programId,
-  //       },
-  //     });
-  //     console.log('created a campaign with address', campaign.toString());
-  //   } catch (error) {
-  //     console.log('from create campaign', error);
-  //   }
-  // };
-
-  const createCampaign = async () => {
-    try {
-      const provider = getProvider();
-      const program = new Program(idl, programID, provider);
-      const [campaign] = await PublicKey.findProgramAddress(
-        [
-          utils.bytes.utf8.encode('CAMPAIGN_DEMO'),
-          utils.bytes.utf8.encode('slug-1'),
-          provider.wallet.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
-      await program.rpc.createCampaign(
-        'campaign name',
-        'campaign description',
-        {
-          accounts: {
-            campaign,
-            user: provider.wallet.publicKey,
-            systemProgram: SystemProgram.programId,
-          },
-        }
-      );
-      console.log('Created a new campaign w/ address:', campaign.toString());
-    } catch (error) {
-      console.error('Error creating campaign account:', error);
-    }
+  const handleSolana = (val) => {
+    setSolana(val);
   };
 
   const getCampaigns = async () => {
     try {
       const connection = new Connection(network, opts.preflightCommitment);
-      const provider = getProvider();
+      const provider = getProvider(solana);
       const program = new Program(idl, programID, provider);
       Promise.all(
         (await connection.getProgramAccounts(programID)).map(
@@ -152,28 +80,20 @@ const App = () => {
     }
   };
 
-  const donation = async (publicKey) => {
-    console.log(publicKey.toString());
-    try {
-      const provider = getProvider();
-      const program = new Program(idl, programID, provider);
-      await program.rpc.donate(new BN(0.2 * web3.LAMPORTS_PER_SOL), {
-        accounts: {
-          campaign: publicKey,
-          user: provider.wallet.publicKey,
-          systemProgram: SystemProgram.programId,
-        },
-      });
-      console.log('donate', publicKey.toString());
-      getCampaigns();
-    } catch (error) {
-      console.log('from donate', error);
-    }
-  };
+  useEffect(() => {
+    (async () => {
+      wallet && getCampaigns();
+    })();
+  }, [wallet]);
 
-  const withdrawFunds = async (publicKey) => {
+  const withdraw = async (publicKey) => {
+    // console.log(publicKey.toString());
+
+    // let valu = prompt('Enter amount to withdraw', 0);
+    // valu = Number(valu);
     try {
-      const provider = getProvider();
+      const provider = getProvider(solana);
+      console.log(programID.toString());
       const program = new Program(idl, programID, provider);
       await program.rpc.withdraw(new BN(0.2 * web3.LAMPORTS_PER_SOL), {
         accounts: {
@@ -182,40 +102,42 @@ const App = () => {
         },
       });
       console.log('Withdrew some money from:', publicKey.toString());
+      getCampaigns();
     } catch (error) {
       console.error('Error withdrawing:', error);
     }
   };
 
-  console.log(campaigns);
   return (
     <>
-      {!wallet && (
-        <div>
-          <h3>please authorize your wallet</h3>
-          <button onClick={connectWallet}>Connect</button>
-        </div>
-      )}
-      <div>{<button onClick={createCampaign}>Create Campaign</button>}</div>
-      <div>{<button onClick={getCampaigns}>Get Campaign</button>}</div>
+      <Header
+        handleWallet={handleWallet}
+        wallet={wallet}
+        handleSolana={handleSolana}
+        solana={solana}
+        getCampaigns={getCampaigns}
+        handleClickOpen={handleClickOpen}
+      />
+      <AlertDialog
+        handleClose={handleClose}
+        open={open}
+        solana={solana}
+        programid={programID}
+      />
       <div>
-        {campaigns.map((item, i) => {
-          return (
-            <div key={i}>
-              <p>Campaign Id: {item.Pubkey.toString()}</p>
-              <p>Campaign name: {item.name}</p>
-              <p>Campaign minContribution: {item.minContribution.toString()}</p>
-              <p>Campaign admin: {item.admin.toString()}</p>
-              <p>
-                Balance: {(item.donation / web3.LAMPORTS_PER_SOL).toString()}
-              </p>
-              <button onClick={() => donation(item.Pubkey)}>Donate</button>
-              <button onClick={() => withdrawFunds(item.Pubkey)}>
-                Withdraw
-              </button>
-            </div>
-          );
-        })}
+        <div style={{ padding: '24px' }}>
+          <Grid container spacing={2}>
+            {campaigns.map((item, i) => (
+              <Grid item lg={4} key={i}>
+                <Campaigns
+                  item={item}
+                  solana={solana}
+                  getCampaigns={getCampaigns}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </div>
       </div>
     </>
   );

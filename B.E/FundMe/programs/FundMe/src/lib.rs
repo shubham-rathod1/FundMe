@@ -33,7 +33,6 @@ pub mod fund_me {
         }
         **campaign.to_account_info().try_borrow_mut_lamports()? -= amount;
         **user.to_account_info().try_borrow_mut_lamports()? += amount;
-
         Ok(())
     }
     // donate function
