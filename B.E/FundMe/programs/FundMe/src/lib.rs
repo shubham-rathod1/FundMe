@@ -11,12 +11,10 @@ pub mod fund_me {
         ctx: Context<CreateCampaign>,
         name: String,
         description: String,
-        min_contribution: u64,
     ) -> ProgramResult {
         let campaign = &mut ctx.accounts.campaign;
         campaign.name = name;
         campaign.description = description;
-        campaign.min_contribution = min_contribution;
         campaign.donation = 0;
         campaign.admin = *ctx.accounts.user.key;
         Ok(())
@@ -65,10 +63,12 @@ pub mod fund_me {
 
 //deriving from accounts and represents the context
 #[derive(Accounts)]
+#[instruction(post: Post)]
+
 pub struct CreateCampaign<'info> {
     // create program derived account;
     // adds bump to add 8 bit bump to the hash function until we don't find unused wallet
-    #[account(init,payer=user,space=9000, seeds=[b"CAMPAIGN_DEMO".as_ref(), user.key().as_ref()],bump)]
+    #[account(init, payer=user, space=10000, seeds=[b"CAMPAIGN_DEMO".as_ref(), post.slug.as_ref(), user.key().as_ref()],bump)]
     pub campaign: Account<'info, Campaign>,
     #[account(mut)]
     pub user: Signer<'info>,
@@ -91,6 +91,11 @@ pub struct Donate<'info> {
     pub user: Signer<'info>,
     // to authrize users to send money from external account
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct Post {
+    pub slug: String,
 }
 
 #[account]
